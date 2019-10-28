@@ -13,91 +13,25 @@ import (
 var ApiKey string = ""
 
 func main() {
-	go http.HandleFunc("/getForcastDays", returnForcastDays)
-	go http.HandleFunc("/getCurrent", returnCurrent)
-	go http.HandleFunc("/getForcastHourly", returnForcastHourly)
+	go http.HandleFunc("/", returnWeatherData)
 	http.ListenAndServe(":8086", nil)
 }
 
-func returnForcastDays(w http.ResponseWriter, r *http.Request) {
+func returnWeatherData(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	remoteIP := ReadUserIP(r)
-	fmt.Println("Accepted connection from " + remoteIP)
-	w.Write([]byte(getForcastDays(remoteIP)))
-
+	w.Write([]byte(getWeatherData(ReadUserIP(r), r.URL.Path)))
 }
 
-func returnForcastHourly(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	remoteIP := ReadUserIP(r)
-	fmt.Println("Accepted connection from " + remoteIP)
-	w.Write([]byte(getForcastHourly(remoteIP)))
-
-}
-
-func returnCurrent(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	remoteIP := ReadUserIP(r)
-	fmt.Println("Accepted connection from " + remoteIP)
-	w.Write([]byte(getCurrent(remoteIP)))
-
-}
-
-func ReadUserIP(r *http.Request) string {
-	IPAddress := r.Header.Get("X-Real-Ip")
-	if IPAddress == "" {
-		IPAddress = r.Header.Get("X-Forwarded-For")
-	}
-	if IPAddress == "" {
-		IPAddress = r.RemoteAddr
-	}
-
-	if idx := strings.IndexByte(IPAddress, ':'); idx >= 0 {
-		IPAddress = IPAddress[:idx]
-	}
-	return IPAddress
-}
-
-func getForcastDays(ip string) string {
-	wURL := "https://national-weather-service.p.rapidapi.com/points/" + getLoc(ip) + "/forecast"
-	client := &http.Client{}
-	request, err := http.NewRequest("GET", wURL, nil)
-
-	if err != nil {
-		log.Fatalln(err)
-	}
-	request.Header.Set("x-rapidapi-host", "national-weather-service.p.rapidapi.com")
-	request.Header.Set("x-rapidapi-key", ApiKey)
-	resp, err := client.Do(request)
-
-	if err != nil {
-		log.Fatalln(err)
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	return string(body)
-}
-
-func getForcastHourly(ip string) string {
-	wURL := "https://national-weather-service.p.rapidapi.com/points/" + getLoc(ip) + "/forecast/hourly"
-	client := &http.Client{}
-	request, err := http.NewRequest("GET", wURL, nil)
-
-	if err != nil {
-		log.Fatalln(err)
-	}
-	request.Header.Set("x-rapidapi-host", "national-weather-service.p.rapidapi.com")
-	request.Header.Set("x-rapidapi-key", ApiKey)
-	resp, err := client.Do(request)
-
-	if err != nil {
-		log.Fatalln(err)
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	return string(body)
-}
-
-func getCurrent(ip string) string {
+func getWeatherData(ip string, requestType string) string {
+	fmt.Println("Accepted connection from " + ip)
 	wURL := "https://national-weather-service.p.rapidapi.com/stations/" + getStation(ip) + "/observations/current"
+	switch requestType {
+	case "/getDaily":
+		wURL = "https://national-weather-service.p.rapidapi.com/points/" + getLoc(ip) + "/forecast"
+	case "/getHourly":
+		wURL = "https://national-weather-service.p.rapidapi.com/stations/" + getStation(ip) + "/observations/current"
+	}
+
 	client := &http.Client{}
 	request, err := http.NewRequest("GET", wURL, nil)
 
@@ -136,6 +70,20 @@ func getStation(ip string) string {
 	value := gjson.Get(myJson, "features.0.properties.stationIdentifier")
 	println(value.String())
 	return value.String()
+}
+
+func ReadUserIP(r *http.Request) string {
+	IPAddress := r.Header.Get("X-Real-Ip")
+	if IPAddress == "" {
+		IPAddress = r.Header.Get("X-Forwarded-For")
+	}
+	if IPAddress == "" {
+		IPAddress = r.RemoteAddr
+	}
+	if idx := strings.IndexByte(IPAddress, ':'); idx >= 0 {
+		IPAddress = IPAddress[:idx]
+	}
+	return IPAddress
 }
 
 func getLoc(ip string) string {
