@@ -6,5 +6,5 @@ port is set to 8086
 
 endpoints:
 /getForcastDays
-/getCurrent
 /getForcastHourly
+any other value returns current contitions.
