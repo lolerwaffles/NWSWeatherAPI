@@ -1,17 +1,17 @@
 package main
 
 import (
-	"apitools"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/lolerwaffles/GoAPITools"
+	"github.com/tidwall/gjson"
 )
 
 var headersmap = map[string]string{
 	"x-rapidapi-host": "national-weather-service.p.rapidapi.com",
-	"HeaderType":      "",
+	"x-rapidapi-key":  "",
 }
 
 func main() {
@@ -24,25 +24,27 @@ func returnWeatherData(w http.ResponseWriter, r *http.Request) {
 	ip := ReadUserIP(r)
 	fmt.Println("Accepted connection from " + ip)
 	requestType := r.URL.Path
+
 	wURL := "https://national-weather-service.p.rapidapi.com/stations/" + getStation(ip) + "/observations/current"
 	switch requestType {
 	case "/getDaily":
 		wURL = "https://national-weather-service.p.rapidapi.com/points/" + getLoc(ip) + "/forecast"
 	case "/getHourly":
-		wURL = "https://national-weather-service.p.rapidapi.com/stations/" + getStation(ip) + "/observations/current"
+		wURL = "https://national-weather-service.p.rapidapi.com/points/" + getLoc(ip) + "/forecast/hourly"
 	}
+	fmt.Println(wURL)
 	w.Write([]byte(GoAPITools.CallAPIReturnString(wURL, headersmap)))
 }
 
 func getStation(ip string) string {
 	wURL := "https://national-weather-service.p.rapidapi.com/points/" + getLoc(ip) + "/stations"
-	return apitools.CallAPIReturnString(wURL, headersmap)
+	json := GoAPITools.CallAPIReturnString(wURL, headersmap)
+	return gjson.Get(json, "features.0.properties.stationIdentifier").String()
 }
 
 func getLoc(ip string) string {
 	wURL := "https://ipapi.co/" + ip + "/latlong/"
-	return apitools.CallAPIReturnString(wURL, map[string]string{})
-
+	return GoAPITools.CallAPIReturnString(wURL, map[string]string{})
 }
 
 func ReadUserIP(r *http.Request) string {
